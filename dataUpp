@@ -1,0 +1,188 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu("⚙️ Управление")
+    .addItem("📥 Импортировать данные", "importData")
+    .addItem("🔄 Сопоставить цены с заказами", "matchPricesWithOrder")
+    .addSeparator()
+    .addItem("🛠 Обновить меню", "onOpen")
+    .addToUi();
+}
+
+// Конвертация буквенного обозначения столбца в индекс
+function columnLetterToIndex(letter) {
+  if (!letter) return null;
+  var column = 0;
+  for (var i = 0; i < letter.length; i++) {
+    column = column * 26 + (letter.charCodeAt(i) - "A".charCodeAt(0) + 1);
+  }
+  return column - 1;
+}
+
+function importData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSettings = ss.getSheetByName("Настройки поставщиков");
+  var sheetPrices = ss.getSheetByName("Загруженные прайсы");
+  var sheetOrder = ss.getSheetByName("order_gsm");
+
+  if (!sheetSettings || !sheetPrices || !sheetOrder) {
+    Logger.log("Ошибка: отсутствует один из листов (Настройки поставщиков, Загруженные прайсы, order_gsm).");
+    return;
+  }
+
+  var settings = sheetSettings.getDataRange().getValues();
+  sheetPrices.clear();
+  sheetPrices.appendRow(["Поставщик", "Артикул", "ШК", "Товар", "Цена", "Валюта"]);
+  sheetOrder.clear();
+  sheetOrder.appendRow(["Артикул", "ШК", "Товар", "Количество", "Цена", "Валюта"]);  // Добавляем "Количество"
+
+  var folder = DriveApp.getFolderById("1Z1UveqEIqy6IKmoS5-MADet2thbtvzMJ");
+  var files = folder.getFiles();
+
+  while (files.hasNext()) {
+    var file = files.next();
+    var fileBlob = file.getBlob();
+    var resource = { title: file.getName(), mimeType: MimeType.GOOGLE_SHEETS };
+    var googleSheetFile = Drive.Files.insert(resource, fileBlob);
+    var ssTemp = SpreadsheetApp.openById(googleSheetFile.id);
+    
+    Logger.log('Загружаем файл: ' + file.getName());
+
+    for (var i = 1; i < settings.length; i++) {
+      var supplier = settings[i][0];
+      var fileName = settings[i][1].trim();
+      var sheetName = settings[i][2].trim();
+
+      if (file.getName() !== fileName) continue;
+
+      var artCol = columnLetterToIndex(settings[i][3]);
+      var barcodeCol = settings[i][4] ? columnLetterToIndex(settings[i][4]) : null;
+      var nameCol = settings[i][5] ? columnLetterToIndex(settings[i][5]) : null;
+      var priceCol = settings[i][6] ? columnLetterToIndex(settings[i][6]) : null;
+      var quantityCol = settings[i][7] ? columnLetterToIndex(settings[i][7]) : null;  // Новый столбец "Количество"
+      var currency = settings[i][8] ? settings[i][8].trim() : "RUB";
+      var rate = parseFloat(settings[i][9].toString().replace(",", ".")) || 1;
+      var startRow = parseInt(settings[i][10]) || 1;
+      var endRow = parseInt(settings[i][11]) || startRow;
+
+      var sheet = ssTemp.getSheetByName(sheetName);
+      if (!sheet) {
+        Logger.log('Лист ' + sheetName + ' не найден в файле ' + file.getName());
+        continue;
+      }
+
+      Logger.log('Обрабатываем данные на листе ' + sheetName + ', строки с ' + startRow + ' по ' + endRow);
+
+      try {
+        var dataRange = sheet.getRange(startRow, 1, endRow - startRow + 1, sheet.getLastColumn());
+        var data = dataRange.getValues();
+
+        for (var j = 0; j < data.length; j++) {
+          var art = data[j][artCol] || "";
+          var barcode = barcodeCol !== null ? data[j][barcodeCol] || "" : "";
+          var name = nameCol !== null ? data[j][nameCol] || "" : "";
+          var price = priceCol !== null ? data[j][priceCol] || "" : "";
+          var quantity = quantityCol !== null ? data[j][quantityCol] || "" : "";  // Количество
+          var priceInRub = (currency === "CNY" && price) ? price * rate : price;
+
+          if (!art) continue; // Пропускаем пустые строки
+
+          if (supplier === "Заказ") {
+            sheetOrder.appendRow([art, barcode, name, quantity, priceInRub, currency]); // Загружаем заказы
+          } else {
+            sheetPrices.appendRow([supplier, art, barcode, name, priceInRub, "RUB"]);
+          }
+        }
+      } catch (e) {
+        Logger.log('Ошибка при обработке данных на листе ' + sheetName + ': ' + e.message);
+      }
+    }
+
+    DriveApp.getFileById(googleSheetFile.id).setTrashed(true);
+  }
+
+  Logger.log('Импорт завершен');
+}
+
+
+function matchPricesWithOrder() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetPrices = ss.getSheetByName("Загруженные прайсы");
+  var sheetOrder = ss.getSheetByName("order_gsm");
+  var sheetSummary = ss.getSheetByName("Сводная таблица");
+  var sheetSettings = ss.getSheetByName("Настройки поставщиков");
+
+  if (!sheetPrices || !sheetOrder || !sheetSummary || !sheetSettings) {
+    Logger.log("Ошибка: один из листов отсутствует.");
+    return;
+  }
+
+  var orderData = sheetOrder.getDataRange().getValues();
+  var pricesData = sheetPrices.getDataRange().getValues();
+  var settingsData = sheetSettings.getDataRange().getValues();
+
+  if (orderData.length < 2 || pricesData.length < 2 || settingsData.length < 2) {
+    Logger.log("Ошибка: нет данных в заказе, прайсах или настройках.");
+    return;
+  }
+
+  // Формируем заголовки сводной таблицы
+  var headers = ["Артикул", "ШК", "Товар", "Количество"];
+  var suppliers = [];
+
+  for (var i = 1; i < settingsData.length; i++) {
+    var supplier = settingsData[i][0];
+    if (supplier !== "Заказ" && supplier !== "Order_GSM") {
+      headers.push(supplier);
+      suppliers.push(supplier);
+    }
+  }
+
+  sheetSummary.clear();
+  sheetSummary.appendRow(headers);
+
+  var orderMap = {};
+
+  // Сохраняем товары из заказа (по артикулу и ШК)
+  for (var i = 1; i < orderData.length; i++) {
+    var art = orderData[i][0] ? orderData[i][0].toString().trim() : "";
+    var barcode = orderData[i][1] ? orderData[i][1].toString().trim() : "";
+    var name = orderData[i][2] || "";
+    var qty = orderData[i][3] || "";
+
+    if (art) orderMap[art] = { barcode, name, qty, prices: {} };
+    if (barcode) orderMap[barcode] = { barcode, name, qty, prices: {} };
+  }
+
+  // Записываем цены поставщиков
+  for (var i = 1; i < pricesData.length; i++) {
+    var supplier = pricesData[i][0];
+    var art = pricesData[i][1] ? pricesData[i][1].toString().trim() : "";
+    var barcode = pricesData[i][2] ? pricesData[i][2].toString().trim() : "";
+    var price = pricesData[i][4] || "";
+
+    if (orderMap[art]) {
+      orderMap[art].prices[supplier] = price;
+    }
+    if (orderMap[barcode]) {
+      orderMap[barcode].prices[supplier] = price;
+    }
+  }
+
+  // Формируем итоговую таблицу
+  for (var key in orderMap) {
+    var row = [
+      key,
+      orderMap[key].barcode,
+      orderMap[key].name,
+      orderMap[key].qty
+    ];
+
+    for (var s = 0; s < suppliers.length; s++) {
+      row.push(orderMap[key].prices[suppliers[s]] || "");
+    }
+
+    sheetSummary.appendRow(row);
+  }
+
+  Logger.log("Сводная таблица сформирована!");
+}
