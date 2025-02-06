@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 15px;
+        background-color: #f4f4f9;
+        color: #333;
+      }
+      h3 {
+        color: #333;
+        text-align: center;
+        font-size: 18px;
+      }
+      .form-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .form-container label {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 5px;
+      }
+      input, select {
+        padding: 8px;
+        font-size: 13px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      input:focus, select:focus {
+        border-color: #007bff;
+        outline: none;
+      }
+      .required {
+        color: red;
+        font-size: 12px;
+      }
+      .form-container button {
+        padding: 10px 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 14px;
+        cursor: pointer;
+        width: 100%;
+        grid-column: span 2;
+      }
+      .form-container button:hover {
+        background-color: #0056b3;
+      }
+      .form-footer {
+        text-align: center;
+        font-size: 13px;
+        margin-top: 16px;
+        color: #777;
+      }
+      .form-container .section-title {
+        font-size: 16px;
+        color: #555;
+        border-bottom: 2px solid #f1f1f1;
+        padding-bottom: 5px;
+        margin-bottom: 12px;
+        grid-column: span 2;
+      }
+      .file-input-container {
+        grid-column: span 2;
+      }
+      .file-input {
+        width: auto;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Форма для добавления настроек</h3>
+    
+    <div class="form-container">
+      <div class="section-title">Основные данные</div>
+
+      <label for="supplier">Наименование: <span class="required">*</span></label>
+      <input type="text" id="supplier" placeholder="Введите наименование поставщика" required>
+
+      <label for="file">Файл: <span class="required">*</span></label>
+      <input type="text" id="file" placeholder="Введите имя файла " required readonly>
+      <div class="file-input-container">
+        <input type="file" id="fileInput" class="file-input" onchange="handleFileSelect(event)">
+      </div>
+
+      <label for="sheet">Лист: <span class="required">*</span></label>
+      <input type="text" id="sheet" placeholder="Введите название листа" required>
+
+      <label for="artCol">Артикул: <span class="required">*</span></label>
+      <input type="text" id="artCol" placeholder="Введите букву столбца артикул" required>
+
+      <label for="barcodeCol">ШК: <span class="required">*</span></label>
+      <input type="text" id="barcodeCol" placeholder="Введите букву столбца ШК" required>
+
+      <label for="nameCol">Наименование: </label>
+      <input type="text" id="nameCol" placeholder="Введите букву столбца наименование">
+
+      <label for="priceCol">Цены: <span class="required">*</span></label>
+      <input type="text" id="priceCol" placeholder="Введите букву столбца цен" required>
+
+      <label for="quantityCol">Количество: </label>
+      <input type="text" id="quantityCol" placeholder="Введите букву столбца количества">
+
+      <label for="currency">Валюта: </label>
+      <select id="currency">
+        <option value="RUB">RUB</option>
+        <option value="USD">USD</option>
+        <option value="CNY">CNY</option>
+      </select>
+
+      <label for="rate">Курс к рублю: </label>
+      <input type="text" id="rate" placeholder="Введите курс к рублю">
+
+      <label for="startRow">Начальная строка: </label>
+      <input type="number" id="startRow" placeholder="Введите начальную строку">
+
+      <label for="endRow">Конечная строка: </label>
+      <input type="number" id="endRow" placeholder="Введите конечную строку">
+      
+      <button onclick="submitForm()">Добавить в настройки</button>
+    </div>
+
+    <div class="form-footer">
+      <p>* Обязательные поля</p>
+    </div>
+
+    <script>
+      function handleFileSelect(event) {
+        var fileInput = document.getElementById('fileInput');
+        var fileName = fileInput.files[0].name; // Получаем имя файла без расширения
+        document.getElementById('file').value = fileName; // Записываем имя файла в поле "Файл"
+      }
+
+      function submitForm() {
+        var supplier = document.getElementById('supplier').value;
+        var file = document.getElementById('file').value;
+        var sheet = document.getElementById('sheet').value;
+        var artCol = document.getElementById('artCol').value;
+        var barcodeCol = document.getElementById('barcodeCol').value;
+        var nameCol = document.getElementById('nameCol').value;
+        var priceCol = document.getElementById('priceCol').value;
+        var quantityCol = document.getElementById('quantityCol').value;
+        var currency = document.getElementById('currency').value;
+        var rate = document.getElementById('rate').value;
+        var startRow = document.getElementById('startRow').value;
+        var endRow = document.getElementById('endRow').value;
+
+        // Проверка обязательных полей
+        if (!supplier || !file || !sheet || !artCol || !barcodeCol || !priceCol) {
+          alert("Пожалуйста, заполните все обязательные поля.");
+          return;
+        }
+
+        // Отправка данных на сервер
+        google.script.run.addSettings({
+          supplier: supplier,
+          file: file,
+          sheet: sheet,
+          artCol: artCol,
+          barcodeCol: barcodeCol,
+          nameCol: nameCol,
+          priceCol: priceCol,
+          quantityCol: quantityCol,
+          currency: currency,
+          rate: rate,
+          startRow: startRow,
+          endRow: endRow
+        });
+
+        google.script.host.close();
+      }
+    </script>
+  </body>
+</html>
