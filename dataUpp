@@ -9,11 +9,11 @@ function columnLetterToIndex(letter) {
 
 function importData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetSettings = ss.getSheetByName("Настройки поставщиков");
-  var sheetOrder = ss.getSheetByName("order_gsm");
+  var sheetSettings = ss.getSheetByName("Настройки");
+  var sheetOrder = ss.getSheetByName("Потребность");
 
   if (!sheetSettings || !sheetOrder) {
-    Logger.log("Ошибка: отсутствует один из листов (Настройки поставщиков, order_gsm).");
+    Logger.log("Ошибка: отсутствует один из листов (Настройки, Потребность).");
     return;
   }
 
@@ -21,7 +21,7 @@ function importData() {
   sheetOrder.clear();
   sheetOrder.appendRow(["Артикул", "ШК", "Товар", "Количество", "Цена", "Валюта"]);  // Добавляем "Количество"
 
-  var folder = DriveApp.getFolderById("1Z1UveqEIqy6IKmoS5-MADet2thbtvzMJ");
+  var folder = DriveApp.getFolderById("1Z1UveqEIqy6IKmoS5-MADet2thbtvzMJ"); // ТУТ нужно указать ID Google Disk
   var files = folder.getFiles();
 
   // Структура для агрегации данных о поставщиках
@@ -45,9 +45,18 @@ function importData() {
     settings.forEach(function(setting, index) {
       var supplier = setting[0];
       var fileName = setting[1].trim();
-      var sheetName = setting[2].trim();
+      var sheetIndex = setting[2] ? parseInt(setting[2]) : 1;  // Получаем индекс листа (если не указан, по умолчанию 1)
 
       if (file.getName() !== fileName) return;
+
+      // Проверяем, что индекс листа корректен
+      var sheetCount = ssTemp.getSheets().length;
+      if (sheetIndex < 1 || sheetIndex > sheetCount) {
+        Logger.log('Ошибка: Лист с индексом ' + sheetIndex + ' не существует в файле ' + file.getName());
+        return;
+      }
+
+      var sheetName = ssTemp.getSheets()[sheetIndex - 1].getName();  // Используем индекс, чтобы выбрать лист
 
       var artCol = columnLetterToIndex(setting[3]);
       var barcodeCol = setting[4] ? columnLetterToIndex(setting[4]) : null;
