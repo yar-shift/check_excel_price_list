@@ -7,6 +7,13 @@ function columnLetterToIndex(letter) {
   return column - 1;  // Индексы в Google Sheets начинаются с 0
 }
 
+function showForm() {
+  var htmlOutput = HtmlService.createHtmlOutputFromFile('form.html')
+    .setWidth(600)
+    .setHeight(800);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Форма ввода данных');
+}
+
 function importData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetSettings = ss.getSheetByName("Настройки");
@@ -21,7 +28,7 @@ function importData() {
   sheetOrder.clear();
   sheetOrder.appendRow(["Артикул", "ШК", "Товар", "Количество", "Цена", "Валюта"]);  // Добавляем "Количество"
 
-  var folder = DriveApp.getFolderById("1Z1UveqEIqy6IKmoS5-MADet2thbtvzMJ"); // ТУТ нужно указать ID Google Disk
+  var folder = DriveApp.getFolderById("1FXBSaP-IB7UpBYgkvRZu-fZ7IBhB-hmH"); // ТУТ нужно указать ID Google Disk
   var files = folder.getFiles();
 
   // Структура для агрегации данных о поставщиках
@@ -182,3 +189,30 @@ function importData() {
 
   Logger.log("Сводная таблица сформирована!");
 }
+
+function addSettings(data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSettings = ss.getSheetByName("Настройки");
+  
+  if (!sheetSettings) {
+    Logger.log("Ошибка: Лист 'Настройки' не найден.");
+    return;
+  }
+  
+  // Добавляем новую строку с данными
+  sheetSettings.appendRow([
+    data.supplier,
+    data.file,
+    data.sheet,
+    data.artCol,
+    data.barcodeCol,
+    data.nameCol,
+    data.priceCol,
+    data.quantityCol,
+    data.currency,
+    data.rate,
+    data.startRow,
+    data.endRow
+  ]);
+}
+
