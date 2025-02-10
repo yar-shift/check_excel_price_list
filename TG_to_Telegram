@@ -1,6 +1,6 @@
 function sendToTelegram() {
-  var token = '7898763376:AAEl911rDyNebfnHx_oc2_pd7WK4GfcARk4'; // Токен твоего бота
-  var chatId = '799425277'; // ID чата или пользователя, куда будет отправлено сообщение
+  var token = 'токен-бота-телеграм'; // Токен твоего бота
+  var chatId = '00000000'; // ID чата или пользователя, куда будет отправлено сообщение
 
   // Получаем активный лист
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
