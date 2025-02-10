@@ -21,7 +21,7 @@ function importData() {
   sheetOrder.clear();
   sheetOrder.appendRow(["Артикул", "ШК", "Товар", "Количество", "Цена", "Валюта"]);  // Добавляем "Количество"
 
-  var folder = DriveApp.getFolderById("1FXBSaP-IB7UpBYgkvRZu-fZ7IBhB-hmH"); // ТУТ нужно указать ID Google Disk
+  var folder = DriveApp.getFolderById("1FXBSaP-IB7UpBYgkvRZu-fZ7IBhB-hmH-KKKhhe"); // ТУТ нужно указать ID Google Disk
   var files = folder.getFiles();
 
   // Структура для агрегации данных о поставщиках
