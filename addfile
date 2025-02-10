@@ -40,6 +40,26 @@ function createOrdersForEachSupplier() {
         sheetOrder.appendRow([art, barcode, name, qty, supplierPrice]);  // Добавляем строку с заказом
       }
     }
+
+    // Настроим форматирование после добавления данных:
+    var lastRow = sheetOrder.getLastRow();
+    
+    // Форматируем столбец A для отображения всех чисел
+    var columnA = sheetOrder.getRange("A2:A" + lastRow);
+    columnA.setNumberFormat("0");  // Устанавливаем формат чисел
+    
+    // Ширина столбца наименования товара (столбец C)
+    sheetOrder.setColumnWidth(3, 500);  // Увеличиваем ширину столбца "Товар" для лучшей читаемости
+
+    // Выделяем заголовки жирным шрифтом и добавляем цвет
+    var headerRange = sheetOrder.getRange("A1:E1");
+    headerRange.setFontWeight("bold");
+    headerRange.setBackground("#f4f820");  // Цвет фона для заголовков
+
+    // Добавляем рамки вокруг данных
+    var dataRange = sheetOrder.getRange("A1:E" + lastRow);
+    dataRange.setBorder(true, true, true, true, true, true);
+
   });
 
   Logger.log("Заказы для каждого поставщика созданы!");
