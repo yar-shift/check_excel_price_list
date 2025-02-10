@@ -1,0 +1,54 @@
+function sendToTelegram() {
+  var token = '7898763376:AAEl911rDyNebfnHx_oc2_pd7WK4GfcARk4'; // Токен твоего бота
+  var chatId = '799425277'; // ID чата или пользователя, куда будет отправлено сообщение
+
+  // Получаем активный лист
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Имя файла: название листа + дата
+  //var fileName = sheet.getName() + ' ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy') + '.xlsx';
+  var fileName = sheet.getName()  + '.xlsx';
+  
+  // Экспортируем лист в формат Excel (.xlsx)
+  var url = 'https://docs.google.com/spreadsheets/d/' + SpreadsheetApp.getActiveSpreadsheet().getId() + '/export?format=xlsx&id=' + SpreadsheetApp.getActiveSpreadsheet().getId() + '&gid=' + sheet.getSheetId();
+  
+  var options = {
+    method: 'get',
+    muteHttpExceptions: true,
+    headers: {
+      'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
+    }
+  };
+
+  var response = UrlFetchApp.fetch(url, options);
+  var fileBlob = response.getBlob().setName(fileName); // Устанавливаем имя файла
+
+  // Отправляем файл в Telegram
+  var telegramUrl = 'https://api.telegram.org/bot' + token + '/sendDocument';
+  var formData = {
+    method: 'post',
+    payload: {
+      chat_id: chatId,
+      document: fileBlob,
+      filename: fileName
+    }
+  };
+
+  UrlFetchApp.fetch(telegramUrl, formData);
+  Logger.log('Файл отправлен в Telegram!');
+
+  // Показать диалоговое окно с кнопкой ОК
+  showConfirmationDialog();
+}
+
+function showConfirmationDialog() {
+  var html = HtmlService.createHtmlOutput('<html><body>' +
+    '<h2>Заказ отправлен в 📬 Telegram</h2>' +
+    '<p>Ваш файл успешно отправлен в Telegram!</p>' +
+    '<button onclick="google.script.host.close()">ОК</button>' +
+    '</body></html>')
+    .setWidth(300)
+    .setHeight(150);
+  
+  SpreadsheetApp.getUi().showModalDialog(html, 'Уведомление');
+}
