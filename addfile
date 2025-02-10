@@ -1,0 +1,46 @@
+function createOrdersForEachSupplier() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSummary = ss.getSheetByName("Сводная таблица");
+
+  if (!sheetSummary) {
+    Logger.log("Ошибка: отсутствует лист 'Сводная таблица'.");
+    return;
+  }
+
+  var summaryData = sheetSummary.getDataRange().getValues();
+  var suppliers = summaryData[0].slice(5);  // Получаем список поставщиков (колонки после артикул, ШК, товар, количество и лучшая цена)
+
+  var currentDate = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "dd.MM.yyyy");
+
+  // Проходим по каждому поставщику и создаем заказ
+  suppliers.forEach(function(supplier, index) {
+    // Создаем новый лист для каждого поставщика
+    var sheetName = supplier + "_" + currentDate;
+    var sheetOrder = ss.getSheetByName(sheetName);
+
+    if (!sheetOrder) {
+      sheetOrder = ss.insertSheet(sheetName);  // Создаем новый лист
+    } else {
+      sheetOrder.clear();  // Если лист уже есть, очищаем его
+    }
+
+    // Добавляем заголовки для заказа
+    sheetOrder.appendRow(["Артикул", "ШК", "Товар", "Количество", "Цена"]);
+
+    // Проходим по всем товарам в сводной таблице
+    for (var i = 1; i < summaryData.length; i++) {
+      var art = summaryData[i][0];  // Артикул
+      var barcode = summaryData[i][1];  // ШК
+      var name = summaryData[i][2];  // Название товара
+      var qty = summaryData[i][3];  // Количество
+      var bestPrice = summaryData[i][4];  // Лучшая цена
+      var supplierPrice = summaryData[i][5 + index];  // Цена от конкретного поставщика
+
+      if (supplierPrice && supplierPrice === bestPrice) {  // Если цена от поставщика соответствует лучшей цене
+        sheetOrder.appendRow([art, barcode, name, qty, supplierPrice]);  // Добавляем строку с заказом
+      }
+    }
+  });
+
+  Logger.log("Заказы для каждого поставщика созданы!");
+}
