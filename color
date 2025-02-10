@@ -1,0 +1,34 @@
+function applyConditionalFormatting() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetSummary = ss.getSheetByName("Сводная таблица");
+
+  if (!sheetSummary) {
+    Logger.log("Лист 'Сводная таблица' не найден.");
+    return;
+  }
+
+  // Определяем диапазон для применения условного форматирования
+  var range = sheetSummary.getRange("F2:Z1000");  // Замените на диапазон вашей сводной таблицы
+
+  // Условие для минимального значения - зеленый цвет шрифта
+  var ruleMin = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND(F2=MIN(FILTER($F2:$Z2; $F2:$Z2<>"" )); $F2<>"")')
+    .setFontColor("green")  // Зеленый цвет шрифта
+    .setRanges([range])
+    .build();
+
+  // Условие для максимального значения - красный цвет шрифта
+  var ruleMax = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND(F2=MAX(FILTER($F2:$Z2; $F2:$Z2<>"" )); $F2<>"")')
+    .setFontColor("red")  // Красный цвет шрифта
+    .setRanges([range])
+    .build();
+
+  // Применяем правила к диапазону
+  var rules = sheetSummary.getConditionalFormatRules();
+  rules.push(ruleMin);
+  rules.push(ruleMax);
+  sheetSummary.setConditionalFormatRules(rules);
+  
+  Logger.log("Условное форматирование применено!");
+}
