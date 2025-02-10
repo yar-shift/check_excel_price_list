@@ -7,13 +7,6 @@ function columnLetterToIndex(letter) {
   return column - 1;  // Индексы в Google Sheets начинаются с 0
 }
 
-function showForm() {
-  var htmlOutput = HtmlService.createHtmlOutputFromFile('form.html')
-    .setWidth(600)
-    .setHeight(800);
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Форма ввода данных');
-}
-
 function importData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetSettings = ss.getSheetByName("Настройки");
@@ -123,96 +116,78 @@ function importData() {
   }
 
   // Формируем заголовки сводной таблицы
-  var headers = ["Артикул", "ШК", "Товар", "Количество"];
-  var suppliers = Object.keys(suppliersData);
+var headers = ["Артикул", "ШК", "Товар", "Количество", "Лучшая цена"];
+var suppliers = Object.keys(suppliersData);
 
+suppliers.forEach(function(supplier) {
+  if (supplier !== "Заказ") {  // Исключаем "Заказ" из сводной таблицы
+    headers.push(supplier);
+  }
+});
+
+sheetSummary.clear();
+sheetSummary.appendRow(headers);
+
+// Собираем все товары по артикулу
+var orderData = sheetOrder.getDataRange().getValues();
+var orderMap = {};
+
+// Сохраняем товары из заказа (по артикулу и ШК)
+for (var i = 1; i < orderData.length; i++) {
+  var art = orderData[i][0] ? orderData[i][0].toString().trim() : "";
+  var barcode = orderData[i][1] ? orderData[i][1].toString().trim() : "";
+  var name = orderData[i][2] || "";
+  var qty = orderData[i][3] || "";
+
+  if (art) orderMap[art] = { barcode, name, qty, prices: {} };
+  if (barcode) orderMap[barcode] = { barcode, name, qty, prices: {} };
+}
+
+// Заполняем цены поставщиков для каждого товара
+suppliers.forEach(function(supplier) {
+  if (supplier === "Заказ") return;  // Исключаем "Заказ"
+  var supplierData = suppliersData[supplier];
+  supplierData.forEach(function(item) {
+    var art = item[0];
+    var barcode = item[1];
+    var name = item[2];
+    var price = item[3];
+
+    if (orderMap[art]) {
+      orderMap[art].prices[supplier] = price;
+    }
+    if (orderMap[barcode]) {
+      orderMap[barcode].prices[supplier] = price;
+    }
+  });
+});
+
+// Формируем итоговую таблицу
+for (var key in orderMap) {
+  var row = [
+    key,
+    orderMap[key].barcode,
+    orderMap[key].name,
+    orderMap[key].qty
+  ];
+
+  // Находим лучшую цену
+  var prices = Object.values(orderMap[key].prices).filter(p => p !== "").map(Number);
+  var bestPrice = prices.length ? Math.min(...prices) : "";
+
+  // Добавляем лучшую цену после "Количество"
+  row.push(bestPrice);
+
+  // Добавляем цену для каждого поставщика
   suppliers.forEach(function(supplier) {
-    if (supplier !== "Заказ") {  // Исключаем "Заказ" из сводной таблицы
-      headers.push(supplier);
+    if (supplier !== "Заказ") {
+      row.push(orderMap[key].prices[supplier] || ""); // Добавляем цену для каждого поставщика
     }
   });
 
-  sheetSummary.clear();
-  sheetSummary.appendRow(headers);
-
-  // Собираем все товары по артикулу
-  var orderData = sheetOrder.getDataRange().getValues();
-  var orderMap = {};
-
-  // Сохраняем товары из заказа (по артикулу и ШК)
-  for (var i = 1; i < orderData.length; i++) {
-    var art = orderData[i][0] ? orderData[i][0].toString().trim() : "";
-    var barcode = orderData[i][1] ? orderData[i][1].toString().trim() : "";
-    var name = orderData[i][2] || "";
-    var qty = orderData[i][3] || "";
-
-    if (art) orderMap[art] = { barcode, name, qty, prices: {} };
-    if (barcode) orderMap[barcode] = { barcode, name, qty, prices: {} };
-  }
-
-  // Заполняем цены поставщиков для каждого товара
-  suppliers.forEach(function(supplier) {
-    if (supplier === "Заказ") return;  // Исключаем "Заказ"
-    var supplierData = suppliersData[supplier];
-    supplierData.forEach(function(item) {
-      var art = item[0];
-      var barcode = item[1];
-      var name = item[2];
-      var price = item[3];
-
-      if (orderMap[art]) {
-        orderMap[art].prices[supplier] = price;
-      }
-      if (orderMap[barcode]) {
-        orderMap[barcode].prices[supplier] = price;
-      }
-    });
-  });
-
-  // Формируем итоговую таблицу
-  for (var key in orderMap) {
-    var row = [
-      key,
-      orderMap[key].barcode,
-      orderMap[key].name,
-      orderMap[key].qty
-    ];
-
-    suppliers.forEach(function(supplier) {
-      if (supplier !== "Заказ") {
-        row.push(orderMap[key].prices[supplier] || ""); // Добавляем цену для каждого поставщика
-      }
-    });
-
-    sheetSummary.appendRow(row);
-  }
-
-  Logger.log("Сводная таблица сформирована!");
+  sheetSummary.appendRow(row);
 }
 
-function addSettings(data) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetSettings = ss.getSheetByName("Настройки");
-  
-  if (!sheetSettings) {
-    Logger.log("Ошибка: Лист 'Настройки' не найден.");
-    return;
-  }
-  
-  // Добавляем новую строку с данными
-  sheetSettings.appendRow([
-    data.supplier,
-    data.file,
-    data.sheet,
-    data.artCol,
-    data.barcodeCol,
-    data.nameCol,
-    data.priceCol,
-    data.quantityCol,
-    data.currency,
-    data.rate,
-    data.startRow,
-    data.endRow
-  ]);
+Logger.log("Сводная таблица сформирована!");
 }
 
